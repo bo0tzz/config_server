@@ -3,16 +3,13 @@ defmodule ConfigServer do
   Documentation for `ConfigServer`.
   """
 
-  @doc """
-  Hello world.
+  require Mixin
 
-  ## Examples
-
-      iex> ConfigServer.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  def child_spec(opts) do
+    ConfigServer.Server.child_spec(opts)
   end
+
+  Mixin.include(Agent,
+    only: [:cast, :get, :get_and_update, :stop, :update]
+  )
 end
