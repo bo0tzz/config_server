@@ -5,9 +5,7 @@ defmodule ConfigServer do
 
   require Mixin
 
-  def child_spec(opts) do
-    ConfigServer.Server.child_spec(opts)
-  end
+  def start_link(opts), do: ConfigServer.Server.start_link(opts)
 
   Mixin.include(Agent,
     only: [:cast, :get, :get_and_update, :stop, :update]
