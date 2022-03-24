@@ -21,7 +21,9 @@ defmodule ConfigServer.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:mixin, "~> 0.1.0"}
+      {:mixin, "~> 0.1.0"},
+      {:yaml_elixir, "~> 2.8"},
+      {:ymlr, "~> 2.0"}
     ]
   end
 end
