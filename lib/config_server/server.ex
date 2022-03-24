@@ -1,36 +1,53 @@
 defmodule ConfigServer.Server do
+  require Logger
   use GenServer
   alias ConfigServer.Server
 
-  defstruct [:path, :storage, :data]
+  defstruct [:path, :storage, :data, :hooks]
 
   def start_link(options), do: GenServer.start_link(__MODULE__, options, options)
 
   @impl true
   def init(options) do
     with {:ok, path} <- Keyword.fetch(options, :path),
+         resolved_path <- resolve_path(path),
          default_fn <- Keyword.get(options, :default_fn, fn -> nil end),
          true <- is_function(default_fn, 0),
-         storage <- Keyword.get(options, :storage, ConfigServer.Storage.BinaryTerm) do
+         storage <- Keyword.get(options, :storage, ConfigServer.Storage.BinaryTerm),
+         load_hook <- Keyword.get(options, :load_hook, & &1),
+         save_hook <- Keyword.get(options, :save_hook, & &1) do
       Process.flag(:trap_exit, true)
 
-      data =
-        case storage.load(path) do
-          {:ok, data} -> data
-          {:error, :enoent} -> default_fn.()
+      {data, save} =
+        case storage.load(resolved_path) do
+          {:ok, data} -> {load_hook.(data), false}
+          {:error, :enoent} -> {default_fn.(), true}
         end
 
       state = %Server{
-        path: path,
+        path: resolved_path,
         storage: storage,
-        data: data
+        data: data,
+        hooks: %{
+          save: save_hook,
+          load: load_hook
+        }
       }
 
-      {:ok, state}
+      case save do
+        true -> {:ok, state, {:continue, :save}}
+        false -> {:ok, state}
+      end
     end
   end
 
-  def save(%Server{path: path, storage: storage, data: data}), do: :ok = storage.save(path, data)
+  defp resolve_path(path) when is_function(path), do: path.()
+  defp resolve_path(path), do: path
+
+  def save(%Server{path: path, storage: storage, data: data, hooks: %{save: save_hook}}) do
+    data = save_hook.(data)
+    :ok = storage.save(path, data)
+  end
 
   @impl true
   def terminate(_, state), do: save(state)
